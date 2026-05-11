@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+ <nav class="navbar navbar-dark bg-success p-3">
+  <span class="navbar-brand">Painel Admin - SUAS</span>
+  <button class="btn btn-light btn-sm" onclick="logout()">Sair</button>
+</nav>
+
+  <div class="container py-4">
+
+   <h4>Cadastrar Usuário</h4>
+<div class="card p-3 mb-4">
+  <input id="userName" class="form-control mb-2" placeholder="Nome completo">
+  <input id="userPhone" class="form-control mb-2" placeholder="Telefone">
+  <input id="userPassword" class="form-control mb-2" placeholder="Senha">
+
+  <select id="userRole" class="form-select mb-2">
+    <option value="motorista">Motorista</option>
+    <option value="admin">Admin / Coordenador</option>
+  </select>
+
+  <button class="btn btn-primary" onclick="addUser()">Cadastrar Usuário</button>
+</div>
+
+    <h4>Cadastrar Veículo</h4>
+    <div class="card p-3 mb-4">
+      <input id="plate" class="form-control mb-2" placeholder="Placa">
+      <input id="model" class="form-control mb-2" placeholder="Modelo">
+
+      <select id="vehicleStatus" class="form-select mb-2">
+        <option>Disponível</option>
+        <option>Em Manutenção</option>
+        <option>Necessita Abastecer</option>
+        <option>Lavagem</option>
+      </select>
+
+      <button class="btn btn-success" onclick="addVehicle()">Cadastrar Carro</button>
+    </div>
+
+    <h4>Cadastrar Viagem</h4>
+    <div class="card p-3 mb-4">
+      <input id="destination" class="form-control mb-2" placeholder="Destino">
+      <input id="dateTime" type="datetime-local" class="form-control mb-2">
+      <input id="passengers" type="number" class="form-control mb-2" placeholder="Quantidade de passageiros">
+
+      <select id="driverSelect" class="form-select mb-2"></select>
+      <select id="vehicleSelect" class="form-select mb-2"></select>
+
+      <div class="form-check mb-2">
+        <input id="hasChild" type="checkbox" class="form-check-input">
+        <label class="form-check-label">Possui Criança?</label>
+      </div>
+
+      <button class="btn btn-primary" onclick="addTrip()">Cadastrar Viagem</button>
+    </div>
+<h4>Veículos Cadastrados</h4>
+<div id="vehiclesList" class="mb-4"></div>
+    <h4>Viagens Cadastradas</h4>
+    <div id="tripsList" class="mb-4"></div>
+    <h4>Usuários Cadastrados</h4>
+<div id="usersList" class="mb-4"></div>
+
+    <h4>Alertas de Manutenção</h4>
+    <div id="alertsList"></div>
+
+  </div>
+
+  <script>
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      window.location.href = "/";
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = "/";
+    }
+
+    async function api(url, options = {}) {
+      return fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
+          ...(options.headers || {})
+        }
+      });
+    }
+
+    async function loadData() {
+      const usersRes = await api("/api/users");
+      const vehiclesRes = await api("/api/vehicles");
+      const tripsRes = await api("/api/trips");
+      const alertsRes = await api("/api/maintenance-alerts");
+
+      const users = await usersRes.json();
+      const vehicles = await vehiclesRes.json();
+      const trips = await tripsRes.json();
+      const alerts = await alertsRes.json();
+
+      const drivers = users.filter(u => u.role === "motorista");
+      usersList.innerHTML = users.map(u => `
+  <div class="card p-3 mb-2">
+    <strong>${u.name}</strong>
+    <p class="mb-1">Telefone: ${u.phone}</p>
+    <p class="mb-1">Tipo: ${u.role === "admin" ? "Admin / Coordenador" : "Motorista"}</p>
+
+    <button class="btn btn-danger btn-sm mt-2" onclick="deleteUser(${u.id})">
+      Excluir Usuário
+    </button>
+  </div>
+`).join("");
+
+      driverSelect.innerHTML = drivers.map(d =>
+        `<option value="${d.id}">${d.name}</option>`
+      ).join("");
+
+      vehicleSelect.innerHTML = vehicles
+        .filter(v => v.status === "Disponível")
+        .map(v => `<option value="${v.id}">${v.model} - ${v.plate}</option>`)
+        .join("");
+vehiclesList.innerHTML = vehicles.map(v => `
+  <div class="card p-3 mb-2">
+    <strong>${v.model}</strong>
+    <p class="mb-1">Placa: ${v.plate}</p>
+    <p class="mb-1">Status: ${v.status}</p>
+
+    <button class="btn btn-danger btn-sm mt-2" onclick="deleteVehicle(${v.id})">
+      Excluir Veículo
+    </button>
+  </div>
+`).join("");
+      tripsList.innerHTML = trips.map(t => `
+        <div class="card p-3 mb-2">
+          <strong>${t.destination}</strong>
+          <p class="mb-1">Data: ${t.dateTime}</p>
+          <p class="mb-1">Motorista: ${t.driverName}</p>
+          <p class="mb-1">Carro: ${t.vehicle}</p>
+          <p class="mb-1">Passageiros: ${t.passengers}</p>
+          ${t.hasChild ? `<div class="alert alert-warning p-2">${t.childAlert}</div>` : ""}
+          <button class="btn btn-danger btn-sm mt-2" onclick="deleteTrip(${t.id})">
+            Excluir Viagem
+          </button>
+        </div>
+      `).join("");
+
+      alertsList.innerHTML = alerts.map(a => `
+        <div class="card p-3 mb-2">
+          <strong>${a.type}</strong>
+          <p class="mb-1">Carro: ${a.vehicle}</p>
+          <p class="mb-1">Motorista: ${a.driverName}</p>
+          <p class="mb-1">Descrição: ${a.description}</p>
+          <small>${a.date}</small>
+          <br>
+          <button class="btn btn-danger btn-sm mt-2" onclick="deleteAlert(${a.id})">
+            Excluir Alerta
+          </button>
+        </div>
+      `).join("");
+    }
+
+    async function addUser() {
+  await api("/api/users", {
+    method: "POST",
+    body: JSON.stringify({
+      name: userName.value,
+      phone: userPhone.value,
+      password: userPassword.value,
+      role: userRole.value
+    })
+  });
+
+  alert("Usuário cadastrado com sucesso!");
+
+  userName.value = "";
+  userPhone.value = "";
+  userPassword.value = "";
+  userRole.value = "motorista";
+  
+
+  loadData();
+}
+
+    async function addVehicle() {
+      await api("/api/vehicles", {
+        method: "POST",
+        body: JSON.stringify({
+          plate: plate.value,
+          model: model.value,
+          status: vehicleStatus.value
+        })
+      });
+
+      alert("Veículo cadastrado!");
+      loadData();
+    }
+
+    async function addTrip() {
+      const possuiCrianca = hasChild.checked;
+
+      if (possuiCrianca) {
+        alert("Atenção: Necessário Cadeirinha!");
+      }
+
+      await api("/api/trips", {
+        method: "POST",
+        body: JSON.stringify({
+          destination: destination.value,
+          dateTime: dateTime.value,
+          passengers: passengers.value,
+          hasChild: possuiCrianca,
+          driverId: Number(driverSelect.value),
+          vehicleId: Number(vehicleSelect.value)
+        })
+      });
+
+      alert("Viagem cadastrada!");
+      loadData();
+    }
+    async function deleteVehicle(id) {
+  const confirmar = confirm("Tem certeza que deseja excluir este veículo?");
+  
+  if (!confirmar) return;
+
+  const res = await api(`/api/vehicles/${id}`, {
+    method: "DELETE"
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data.message || "Erro ao excluir veículo");
+    return;
+  }
+
+  alert("Veículo excluído com sucesso!");
+  loadData();
+}
+
+    async function deleteTrip(id) {
+      const confirmar = confirm("Tem certeza que deseja excluir esta viagem?");
+      if (!confirmar) return;
+
+      const res = await api(`/api/trips/${id}`, {
+        method: "DELETE"
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message || "Erro ao excluir viagem");
+        return;
+      }
+
+      alert("Viagem excluída!");
+      loadData();
+    }
+
+    async function deleteAlert(id) {
+      const confirmar = confirm("Tem certeza que deseja excluir este alerta?");
+      if (!confirmar) return;
+
+      const res = await api(`/api/maintenance-alerts/${id}`, {
+        method: "DELETE"
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message || "Erro ao excluir alerta");
+        return;
+      }
+
+      alert("Alerta excluído!");
+      loadData();
+    }
+    async function deleteUser(id) {
+  const confirmar = confirm("Tem certeza que deseja excluir este usuário?");
+  if (!confirmar) return;
+
+  const res = await api(`/api/users/${id}`, {
+    method: "DELETE"
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data.message || "Erro ao excluir usuário");
+    return;
+  }
+
+  alert("Usuário excluído com sucesso!");
+  loadData();
+}
+
+    loadData();
+  </script>
+</body>
+</html>
