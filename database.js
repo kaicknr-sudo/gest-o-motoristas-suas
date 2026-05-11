@@ -50,32 +50,21 @@ db.serialize(() => {
     )
   `);
 
- db.get("SELECT * FROM users WHERE phone = ?", ["38999990000"], (err, user) => {
-  if (!user) {
-    db.run(`
-      INSERT INTO users (name, phone, password, role)
-      VALUES (?, ?, ?, ?)
-    `, ["Kaick Super ADM", "38999990000", "123456", "superadmin"]);
+ db.get(
+  "SELECT * FROM users WHERE phone = ?",
+  ["38999990000"],
+  (err, user) => {
+    if (!user) {
+      db.run(
+        `
+        INSERT INTO users (name, phone, password, role)
+        VALUES (?, ?, ?, ?)
+      `,
+        ["Kaick Super ADM", "38999990000", "123456", "superadmin"]
+      );
+    }
   }
-});
-
-db.get("SELECT * FROM users WHERE phone = ?", ["38999991111"], (err, user) => {
-  if (!user) {
-    db.run(`
-      INSERT INTO users (name, phone, password, role)
-      VALUES (?, ?, ?, ?)
-    `, ["João Motorista", "38999991111", "123456", "motorista"]);
-  }
-});
-
-db.get("SELECT * FROM users WHERE phone = ?", ["38999991111"], (err, user) => {
-  if (!user) {
-    db.run(`
-      INSERT INTO users (name, phone, password, role)
-      VALUES (?, ?, ?, ?)
-    `, ["João Motorista", "38999991111", "123456", "motorista"]);
-  }
-});
+);
 
   db.get("SELECT * FROM vehicles WHERE plate = ?", ["ABC-1234"], (err, vehicle) => {
     if (!vehicle) {
