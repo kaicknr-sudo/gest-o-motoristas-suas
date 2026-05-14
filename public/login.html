@@ -39,10 +39,10 @@
 
       const data = await res.json();
 
-      if (!res.ok) {
-        alert(data.message || "Erro ao fazer login.");
-        return;
-      }
+     if (!res.ok) {
+  alert((data.message || "Erro ao fazer login.") + "\n" + (data.error || ""));
+  return;
+}
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
