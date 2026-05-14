@@ -1,6 +1,13 @@
-const sqlite3 = require("sqlite3").verbose();
+const { Pool } = require("pg");
 
-const db = new sqlite3.Database("./database.sqlite");
+const pool = new Pool({
+  connectionString: "@db.jvgrkhkitozuuqkmzsfx.supabase.co:5432/postgres",
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+module.exports = pool;
 
 db.serialize(() => {
   db.run(`
